@@ -17,9 +17,10 @@
       </Directory>
     </Directory>
     <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
+      <Component Id="MainExecutable" Guid="D1994477-2B66-4883-AB15-6FCF293E7497">
         <File Id="MainDLL" Source="..\publish\SFROofsSafetyMonitor.dll" KeyPath="yes" />
         <File Source="..\publish\SFROofsSafetyMonitor.pdb" />
+        <File Source="..\publish\SFROofsSafetyMonitor.dll.config" />
         <File Source="..\publish\ASCOM.DeviceInterfaces.dll" />
         <File Source="..\publish\ASCOM.Exceptions.dll" />
         <File Source="..\publish\Newtonsoft.Json.dll" />

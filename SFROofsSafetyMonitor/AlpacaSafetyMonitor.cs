@@ -11,10 +11,11 @@ using System.Runtime.InteropServices;
 
 namespace SFROofsSafetyMonitor
 {
-    [Guid("12345678-1234-1234-1234-123456789ABC")]
+    [Guid("D1994477-2B66-4883-AB15-6FCF293E7497")]
     [ClassInterface(ClassInterfaceType.None)]
     [ComVisible(true)]
     [ProgId("ASCOM.SFROofsSafetyMonitor.SafetyMonitor")]
+    [ComSourceInterfaces(typeof(ISafetyMonitor))]
     public class AlpacaSafetyMonitor : ISafetyMonitor
     {
         private string selectedRoofName;

@@ -33,6 +33,9 @@ jobs:
           # Copy main assembly and dependencies
           Copy-Item "SFROofsSafetyMonitor/bin/Any CPU/Release/net48/*" "publish/" -Recurse -Force
           
+          # Copy app.config as .dll.config (required for assembly binding)
+          Copy-Item "SFROofsSafetyMonitor/App.config" "publish/SFROofsSafetyMonitor.dll.config" -Force
+          
           # Copy roofs.json config file
           Copy-Item "SFROofsSafetyMonitor/roofs.json" "publish/" -Force
           
