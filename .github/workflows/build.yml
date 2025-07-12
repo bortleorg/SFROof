@@ -31,7 +31,7 @@ jobs:
           New-Item -ItemType Directory -Path "publish" -Force
           
           # Copy main assembly and dependencies
-          Copy-Item "SFROofsSafetyMonitor/bin/Release/net48/*" "publish/" -Recurse -Force
+          Copy-Item "SFROofsSafetyMonitor/bin/Any CPU/Release/net48/*" "publish/" -Recurse -Force
           
           # Copy roofs.json config file
           Copy-Item "SFROofsSafetyMonitor/roofs.json" "publish/" -Force
