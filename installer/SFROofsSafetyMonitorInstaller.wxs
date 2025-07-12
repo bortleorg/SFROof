@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="SFROofs Safety Monitor" Language="1033" Version="1.0.0.0" Manufacturer="YourOrg" UpgradeCode="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
-    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
-    <MediaTemplate />
+  <Product Id="*" Name="SFROofs Safety Monitor" Language="1033" Version="1.0.0.0" Manufacturer="SFROof Development" UpgradeCode="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Description="ASCOM Safety Monitor for SFROof observatories" />
+    <MediaTemplate EmbedCab="yes" />
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
         <Directory Id="INSTALLFOLDER" Name="SFROofsSafetyMonitor"/>
@@ -10,10 +10,32 @@
     </Directory>
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
-        <File Source="..\publish\SFROofsSafetyMonitor.dll" />
+        <File Source="..\publish\SFROofsSafetyMonitor.dll" KeyPath="yes" />
         <File Source="..\publish\SFROofsSafetyMonitor.deps.json" />
-        <File Source="..\publish\SFROofsSafetyMonitor.runtimeconfig.json" />
+        <File Source="..\publish\SFROofsSafetyMonitor.pdb" />
+        <File Source="..\publish\ASCOM.DeviceInterfaces.dll" />
+        <File Source="..\publish\ASCOM.Exceptions.dll" />
+        <File Source="..\publish\Newtonsoft.Json.dll" />
         <File Source="..\SFROofsSafetyMonitor\roofs.json" />
+        <RegistryKey Root="HKCR" Key="ASCOM.SFROofsSafetyMonitor.SafetyMonitor">
+          <RegistryValue Type="string" Value="SFROofs Safety Monitor" />
+          <RegistryKey Key="CLSID">
+            <RegistryValue Type="string" Value="{12345678-1234-1234-1234-123456789ABC}" />
+          </RegistryKey>
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key="CLSID\{12345678-1234-1234-1234-123456789ABC}">
+          <RegistryValue Type="string" Value="SFROofs Safety Monitor" />
+          <RegistryKey Key="InprocServer32">
+            <RegistryValue Type="string" Value="mscoree.dll" />
+            <RegistryValue Name="ThreadingModel" Type="string" Value="Both" />
+            <RegistryValue Name="Class" Type="string" Value="SFROofsSafetyMonitor.AlpacaSafetyMonitor" />
+            <RegistryValue Name="Assembly" Type="string" Value="SFROofsSafetyMonitor, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
+            <RegistryValue Name="RuntimeVersion" Type="string" Value="v6.0.30319" />
+          </RegistryKey>
+          <RegistryKey Key="ProgId">
+            <RegistryValue Type="string" Value="ASCOM.SFROofsSafetyMonitor.SafetyMonitor" />
+          </RegistryKey>
+        </RegistryKey>
       </Component>
     </DirectoryRef>
     <Feature Id="DefaultFeature" Level="1">
