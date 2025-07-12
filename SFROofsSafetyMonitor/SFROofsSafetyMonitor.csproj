@@ -7,6 +7,12 @@
     <RootNamespace>SFROofsSafetyMonitor</RootNamespace>
     <AssemblyName>SFROofsSafetyMonitor</AssemblyName>
     <ComVisible>true</ComVisible>
+    
+    <!-- Default version, will be overridden by GitHub Actions -->
+    <Version>0.0.1</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ASCOM.DeviceInterfaces" Version="7.0.0" />

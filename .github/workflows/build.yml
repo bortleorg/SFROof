@@ -13,6 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -match "refs/tags/v(.+)") {
+            $version = $matches[1]
+            Write-Host "Extracted version: $version"
+            echo "VERSION=$version" >> $env:GITHUB_ENV
+          } else {
+            $version = "0.0.1-dev"
+            Write-Host "No tag found, using dev version: $version"
+            echo "VERSION=$version" >> $env:GITHUB_ENV
+          }
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -20,18 +33,18 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Restore NuGet packages
-        run: msbuild SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj /t:restore
+        run: dotnet restore SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj
 
-      - name: Build with MSBuild
-        run: msbuild SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj /p:Configuration=Release /p:Platform="Any CPU"
+      - name: Build with dotnet
+        run: dotnet build SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj -c Release -p:Version=${{ env.VERSION }}
 
       - name: Prepare publish directory
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path "publish" -Force
           
-          # Copy main assembly and dependencies
-          Copy-Item "SFROofsSafetyMonitor/bin/Any CPU/Release/net48/*" "publish/" -Recurse -Force
+          # Copy main assembly and dependencies (dotnet build output path)
+          Copy-Item "SFROofsSafetyMonitor/bin/Release/net48/*" "publish/" -Recurse -Force
           
           # Copy app.config as .dll.config (required for assembly binding)
           Copy-Item "SFROofsSafetyMonitor/App.config" "publish/SFROofsSafetyMonitor.dll.config" -Force
