@@ -9,8 +9,10 @@
       </Directory>
     </Directory>
     <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="MainExecutable" Guid="PUT-GUID-HERE">
-        <File Source="..\SFROofsSafetyMonitor\bin\Release\net6.0-windows\SFROofsSafetyMonitor.exe" />
+      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
+        <File Source="..\publish\SFROofsSafetyMonitor.dll" />
+        <File Source="..\publish\SFROofsSafetyMonitor.deps.json" />
+        <File Source="..\publish\SFROofsSafetyMonitor.runtimeconfig.json" />
         <File Source="..\SFROofsSafetyMonitor\roofs.json" />
       </Component>
     </DirectoryRef>

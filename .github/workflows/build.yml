@@ -24,16 +24,36 @@ jobs:
       - name: Build
         run: dotnet build SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj --configuration Release
 
-      - name: Publish self-contained
-        run: dotnet publish SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj --configuration Release --self-contained -r win-x64 -o publish
+      - name: Publish
+        run: dotnet publish SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj --configuration Release -o publish
 
-      - name: Install WiX Toolset
-        run: choco install wix --version=3.11.2
-
-      - name: Build Installer
+      - name: Setup WiX
+        shell: pwsh
         run: |
-          "C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe" installer/SFROofsSafetyMonitorInstaller.wxs
-          "C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe" SFROofsSafetyMonitorInstaller.wixobj -o SFROofsSafetyMonitorInstaller.msi
+          # Download and install WiX 3.14
+          $url = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314.exe"
+          $output = "wix314.exe"
+          Write-Host "Downloading WiX from $url"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Write-Host "Installing WiX silently"
+          Start-Process -FilePath $output -ArgumentList "/quiet" -Wait
+          Write-Host "WiX installation completed"
+          
+      - name: Build Installer
+        shell: pwsh
+        run: |
+          $candlePath = "C:\Program Files (x86)\WiX Toolset v3.14\bin\candle.exe"
+          $lightPath = "C:\Program Files (x86)\WiX Toolset v3.14\bin\light.exe"
+          
+          if (-not (Test-Path $candlePath)) {
+            Write-Host "Candle.exe not found at $candlePath"
+            Get-ChildItem "C:\Program Files (x86)" -Recurse -Name "candle.exe" -ErrorAction SilentlyContinue
+            exit 1
+          }
+          
+          Write-Host "Building installer with WiX"
+          & $candlePath installer/SFROofsSafetyMonitorInstaller.wxs
+          & $lightPath SFROofsSafetyMonitorInstaller.wixobj -o SFROofsSafetyMonitorInstaller.msi
 
       - name: Upload MSI to Release
         if: startsWith(github.ref, 'refs/tags/')
