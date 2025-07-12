@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="SFROofs Safety Monitor" Language="1033" Version="1.0.0.0" Manufacturer="YourOrg" UpgradeCode="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+    <MediaTemplate />
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="SFROofsSafetyMonitor"/>
+      </Directory>
+    </Directory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="PUT-GUID-HERE">
+        <File Source="..\SFROofsSafetyMonitor\bin\Release\net6.0-windows\SFROofsSafetyMonitor.exe" />
+        <File Source="..\SFROofsSafetyMonitor\roofs.json" />
+      </Component>
+    </DirectoryRef>
+    <Feature Id="DefaultFeature" Level="1">
+      <ComponentRef Id="MainExecutable" />
+    </Feature>
+  </Product>
+</Wix>

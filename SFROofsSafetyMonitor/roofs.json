@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Roof1",
+    "url": "https://devnull.sfo3.digitaloceanspaces.com/starfront/RoofStatusFile_1.txt"
+  },
+  {
+    "name": "Roof2",
+    "url": "https://devnull.sfo3.digitaloceanspaces.com/starfront/RoofStatusFile_2.txt"
+  }
+]
