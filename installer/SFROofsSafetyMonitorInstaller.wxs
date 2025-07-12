@@ -19,12 +19,15 @@
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
         <File Id="MainDLL" Source="..\publish\SFROofsSafetyMonitor.dll" KeyPath="yes" />
-        <File Source="..\publish\SFROofsSafetyMonitor.deps.json" />
         <File Source="..\publish\SFROofsSafetyMonitor.pdb" />
         <File Source="..\publish\ASCOM.DeviceInterfaces.dll" />
         <File Source="..\publish\ASCOM.Exceptions.dll" />
         <File Source="..\publish\Newtonsoft.Json.dll" />
-        <File Source="..\SFROofsSafetyMonitor\roofs.json" />
+        <File Source="..\publish\System.Configuration.ConfigurationManager.dll" />
+        <File Source="..\publish\System.Security.AccessControl.dll" />
+        <File Source="..\publish\System.Security.Permissions.dll" />
+        <File Source="..\publish\System.Security.Principal.Windows.dll" />
+        <File Source="..\publish\roofs.json" />
         
         <!-- ASCOM Platform registration -->
         <RegistryKey Root="HKLM" Key="SOFTWARE\ASCOM\SafetyMonitor Drivers\ASCOM.SFROofsSafetyMonitor.SafetyMonitor">

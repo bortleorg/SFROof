@@ -13,19 +13,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.x'
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Restore dependencies
-        run: dotnet restore SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
 
-      - name: Build
-        run: dotnet build SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj --configuration Release
+      - name: Restore NuGet packages
+        run: msbuild SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj /t:restore
 
-      - name: Publish
-        run: dotnet publish SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj --configuration Release -o publish
+      - name: Build with MSBuild
+        run: msbuild SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Prepare publish directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "publish" -Force
+          
+          # Copy main assembly and dependencies
+          Copy-Item "SFROofsSafetyMonitor/bin/Release/net48/*" "publish/" -Recurse -Force
+          
+          # Copy roofs.json config file
+          Copy-Item "SFROofsSafetyMonitor/roofs.json" "publish/" -Force
+          
+          Write-Host "Published files:"
+          Get-ChildItem "publish" -Recurse
 
       - name: Setup WiX
         shell: pwsh
@@ -52,9 +64,23 @@ jobs:
           }
           
           Write-Host "Building installer with WiX"
+          Write-Host "Available files in publish directory:"
+          Get-ChildItem "publish" -Recurse
+          
           Push-Location installer
           & $candlePath SFROofsSafetyMonitorInstaller.wxs
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Candle failed with exit code $LASTEXITCODE"
+            Pop-Location
+            exit 1
+          }
+          
           & $lightPath SFROofsSafetyMonitorInstaller.wixobj -o ..\SFROofsSafetyMonitorInstaller.msi
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Light failed with exit code $LASTEXITCODE"
+            Pop-Location
+            exit 1
+          }
           Pop-Location
 
       - name: Upload MSI to Release
