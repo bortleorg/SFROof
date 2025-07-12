@@ -10,13 +10,13 @@
     </Directory>
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
-        <File Source="..\publish\SFROofsSafetyMonitor.dll" KeyPath="yes" />
-        <File Source="..\publish\SFROofsSafetyMonitor.deps.json" />
-        <File Source="..\publish\SFROofsSafetyMonitor.pdb" />
-        <File Source="..\publish\ASCOM.DeviceInterfaces.dll" />
-        <File Source="..\publish\ASCOM.Exceptions.dll" />
-        <File Source="..\publish\Newtonsoft.Json.dll" />
-        <File Source="..\SFROofsSafetyMonitor\roofs.json" />
+        <File Source="publish\SFROofsSafetyMonitor.dll" KeyPath="yes" />
+        <File Source="publish\SFROofsSafetyMonitor.deps.json" />
+        <File Source="publish\SFROofsSafetyMonitor.pdb" />
+        <File Source="publish\ASCOM.DeviceInterfaces.dll" />
+        <File Source="publish\ASCOM.Exceptions.dll" />
+        <File Source="publish\Newtonsoft.Json.dll" />
+        <File Source="SFROofsSafetyMonitor\roofs.json" />
         <RegistryKey Root="HKCR" Key="ASCOM.SFROofsSafetyMonitor.SafetyMonitor">
           <RegistryValue Type="string" Value="SFROofs Safety Monitor" />
           <RegistryKey Key="CLSID">
