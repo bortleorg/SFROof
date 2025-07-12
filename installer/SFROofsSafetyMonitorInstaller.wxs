@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="6db2e375-c1da-41b1-9c9f-73eb01dc55eb">
+        <File Id="MainDLL" Source="../publish/SFROofsSafetyMonitor.dll" KeyPath="yes" />ncoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*" Name="SFROofs Safety Monitor" Language="1033" Version="1.0.0.0" Manufacturer="SFROof Development" UpgradeCode="A1B2C3D4-E5F6-4A4A-8B8B-123456789ABC">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Description="ASCOM Safety Monitor for SFROof observatories" />

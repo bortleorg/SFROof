@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>SFROofsSafetyMonitor</RootNamespace>
     <AssemblyName>SFROofsSafetyMonitor</AssemblyName>
+    <ComVisible>true</ComVisible>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ASCOM.DeviceInterfaces" Version="7.0.0" />
