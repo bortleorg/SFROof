@@ -17,8 +17,8 @@ namespace SFROofsSafetyMonitor
     [ProgId("ASCOM.SFROofsSafetyMonitor.SafetyMonitor")]
     public class AlpacaSafetyMonitor : ISafetyMonitor
     {
-        private string? selectedRoofName;
-        private string? selectedRoofUrl;
+        private string selectedRoofName;
+        private string selectedRoofUrl;
         private static readonly string ConfigFile = "roofs.json";
         private bool connected = false;
 
@@ -75,10 +75,12 @@ namespace SFROofsSafetyMonitor
 
         public void SetupDialog()
         {
-            using var form = new SettingsForm();
-            if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            using (var form = new SettingsForm())
             {
-                LoadSelectedRoof();
+                if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    LoadSelectedRoof();
+                }
             }
         }
 
@@ -114,11 +116,13 @@ namespace SFROofsSafetyMonitor
             if (string.IsNullOrEmpty(selectedRoofUrl))
                 throw new System.InvalidOperationException("No roof selected!");
 
-            using var client = new HttpClient();
-            var res = await client.GetStringAsync(selectedRoofUrl);
-            // Expecting status as first line: "OPEN" or "CLOSED"
-            var line = res.Split('\n', StringSplitOptions.RemoveEmptyEntries)[0].Trim().ToUpperInvariant();
-            return line;
+            using (var client = new HttpClient())
+            {
+                var res = await client.GetStringAsync(selectedRoofUrl);
+                // Expecting status as first line: "OPEN" or "CLOSED"
+                var line = res.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim().ToUpperInvariant();
+                return line;
+            }
         }
 
         private void LoadSelectedRoof()

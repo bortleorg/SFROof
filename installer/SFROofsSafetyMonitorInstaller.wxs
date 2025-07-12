@@ -25,12 +25,17 @@
         <File Source="..\publish\ASCOM.Exceptions.dll" />
         <File Source="..\publish\Newtonsoft.Json.dll" />
         <File Source="..\SFROofsSafetyMonitor\roofs.json" />
+        
+        <!-- ASCOM Platform registration -->
+        <RegistryKey Root="HKLM" Key="SOFTWARE\ASCOM\SafetyMonitor Drivers\ASCOM.SFROofsSafetyMonitor.SafetyMonitor">
+          <RegistryValue Type="string" Value="SFROofs Safety Monitor" />
+        </RegistryKey>
       </Component>
     </DirectoryRef>
     
     <!-- Use regasm from .NET Framework for COM registration -->
     <CustomAction Id="RegisterASCOM" Directory="INSTALLFOLDER" 
-                  ExeCommand="&quot;[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\regasm.exe&quot; &quot;[INSTALLFOLDER]SFROofsSafetyMonitor.dll&quot; /codebase" 
+                  ExeCommand="&quot;[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\regasm.exe&quot; &quot;[INSTALLFOLDER]SFROofsSafetyMonitor.dll&quot; /codebase /tlb" 
                   Execute="deferred" Impersonate="no" Return="ignore" />
     
     <CustomAction Id="UnregisterASCOM" Directory="INSTALLFOLDER" 
