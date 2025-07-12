@@ -30,11 +30,11 @@
     
     <!-- Use regasm from .NET Framework for COM registration -->
     <CustomAction Id="RegisterASCOM" Directory="INSTALLFOLDER" 
-                  ExecCommand="&quot;[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\regasm.exe&quot; &quot;[INSTALLFOLDER]SFROofsSafetyMonitor.dll&quot; /codebase" 
+                  ExeCommand="&quot;[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\regasm.exe&quot; &quot;[INSTALLFOLDER]SFROofsSafetyMonitor.dll&quot; /codebase" 
                   Execute="deferred" Impersonate="no" Return="ignore" />
     
     <CustomAction Id="UnregisterASCOM" Directory="INSTALLFOLDER" 
-                  ExecCommand="&quot;[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\regasm.exe&quot; &quot;[INSTALLFOLDER]SFROofsSafetyMonitor.dll&quot; /unregister" 
+                  ExeCommand="&quot;[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\regasm.exe&quot; &quot;[INSTALLFOLDER]SFROofsSafetyMonitor.dll&quot; /unregister" 
                   Execute="deferred" Impersonate="no" Return="ignore" />
     
     <!-- Custom action to check ASCOM Platform version -->
@@ -47,10 +47,7 @@
     
     <InstallExecuteSequence>
       <Custom Action="RegisterASCOM" After="InstallFiles">NOT Installed</Custom>
+      <Custom Action="UnregisterASCOM" Before="RemoveFiles">Installed AND REMOVE="ALL"</Custom>
     </InstallExecuteSequence>
-    
-    <UninstallExecuteSequence>
-      <Custom Action="UnregisterASCOM" Before="RemoveFiles">Installed</Custom>
-    </UninstallExecuteSequence>
   </Product>
 </Wix>
