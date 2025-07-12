@@ -23,7 +23,7 @@ namespace SFROofsSafetyMonitor
                 foreach (var roof in roofs)
                     comboBoxRoofs.Items.Add(roof.Name);
 
-                comboBoxRoofs.SelectedItem = Properties.Settings.Default.SelectedRoofName;
+                comboBoxRoofs.SelectedItem = Settings.SelectedRoofName;
             }
             catch (Exception ex)
             {
@@ -33,8 +33,7 @@ namespace SFROofsSafetyMonitor
 
         private void buttonOK_Click(object sender, EventArgs e)
         {
-            Properties.Settings.Default.SelectedRoofName = comboBoxRoofs.SelectedItem?.ToString();
-            Properties.Settings.Default.Save();
+            Settings.SelectedRoofName = comboBoxRoofs.SelectedItem?.ToString();
             DialogResult = DialogResult.OK;
             Close();
         }

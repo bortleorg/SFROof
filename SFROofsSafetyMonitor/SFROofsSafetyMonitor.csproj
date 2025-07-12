@@ -1,6 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
@@ -8,7 +8,8 @@
     <AssemblyName>SFROofsSafetyMonitor</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ASCOM.Alpaca" Version="6.6.1" />
+    <PackageReference Include="ASCOM.DeviceInterfaces" Version="7.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="6.0.0" />
   </ItemGroup>
 </Project>
