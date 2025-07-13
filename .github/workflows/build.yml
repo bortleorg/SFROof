@@ -52,15 +52,6 @@ jobs:
           # Copy roofs.json config file
           Copy-Item "SFROofsSafetyMonitor/roofs.json" "publish/" -Force
           
-          # Copy System.Net.Http.dll from NuGet packages (required for COM instantiation)
-          $httpDllPath = "$env:USERPROFILE\.nuget\packages\system.net.http\4.3.4\lib\net46\System.Net.Http.dll"
-          if (Test-Path $httpDllPath) {
-            Copy-Item $httpDllPath "publish/" -Force
-            Write-Host "Copied System.Net.Http.dll from NuGet packages"
-          } else {
-            Write-Host "Warning: System.Net.Http.dll not found at $httpDllPath"
-          }
-          
           Write-Host "Published files:"
           Get-ChildItem "publish" -Recurse
 

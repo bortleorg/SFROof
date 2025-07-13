@@ -5,8 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
+using System.Net;
 using System.Runtime.InteropServices;
 
 namespace SFROofsSafetyMonitor
@@ -41,7 +40,7 @@ namespace SFROofsSafetyMonitor
 
                 try
                 {
-                    var status = GetRoofStatus().GetAwaiter().GetResult();
+                    var status = GetRoofStatus();
                     return status == "CLOSED";
                 }
                 catch
@@ -112,14 +111,14 @@ namespace SFROofsSafetyMonitor
             throw new ASCOM.MethodNotImplementedException("CommandString is not implemented");
         }
 
-        private async Task<string> GetRoofStatus()
+        private string GetRoofStatus()
         {
             if (string.IsNullOrEmpty(selectedRoofUrl))
                 throw new System.InvalidOperationException("No roof selected!");
 
-            using (var client = new HttpClient())
+            using (var client = new WebClient())
             {
-                var res = await client.GetStringAsync(selectedRoofUrl);
+                var res = client.DownloadString(selectedRoofUrl);
                 // Expecting status as first line: "OPEN" or "CLOSED"
                 var line = res.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim().ToUpperInvariant();
                 return line;
