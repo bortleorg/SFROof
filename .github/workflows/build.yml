@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,22 +51,42 @@ jobs:
       - name: Setup Inno Setup
         shell: pwsh
         run: |
-          $url = "https://jrsoftware.org/download.php/is.exe"
-          $output = "innosetup.exe"
-          Write-Host "Downloading Inno Setup from $url"
-          Invoke-WebRequest -Uri $url -OutFile $output
-          Write-Host "Installing Inno Setup silently"
-          Start-Process -FilePath $output -ArgumentList "/VERYSILENT" -Wait
+          Write-Host "Installing Inno Setup via Chocolatey"
+          choco install innosetup -y
           Write-Host "Inno Setup installation completed"
+          
+          # Verify installation
+          $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $isccPath) {
+            Write-Host "✅ Inno Setup installed successfully at $isccPath"
+          } else {
+            Write-Host "❌ Inno Setup not found, checking alternative locations..."
+            Get-ChildItem "C:\Program Files*" -Recurse -Name "ISCC.exe" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Found: $_" }
+          }
 
       - name: Build Installer
         shell: pwsh
         run: |
-          $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          # Try multiple possible locations for ISCC.exe
+          $isccPaths = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe",
+            "C:\tools\InnoSetup\ISCC.exe"
+          )
           
-          if (-not (Test-Path $isccPath)) {
-            Write-Host "ISCC.exe not found at $isccPath"
-            Get-ChildItem "C:\Program Files (x86)" -Recurse -Name "ISCC.exe" -ErrorAction SilentlyContinue
+          $isccPath = $null
+          foreach ($path in $isccPaths) {
+            if (Test-Path $path) {
+              $isccPath = $path
+              Write-Host "✅ Found ISCC.exe at: $path"
+              break
+            }
+          }
+          
+          if (-not $isccPath) {
+            Write-Host "❌ ISCC.exe not found in any expected location"
+            Write-Host "Searching for ISCC.exe..."
+            Get-ChildItem "C:\" -Recurse -Name "ISCC.exe" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "Found: $_" }
             exit 1
           }
           
@@ -75,10 +96,11 @@ jobs:
           Push-Location SFROofsSafetyMonitor
           & $isccPath AlpacaInstaller.iss
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Inno Setup failed with exit code $LASTEXITCODE"
+            Write-Host "❌ Inno Setup failed with exit code $LASTEXITCODE"
             Pop-Location
             exit 1
           }
+          Write-Host "✅ Installer built successfully"
           Pop-Location
 
       - name: Upload Setup to Release
