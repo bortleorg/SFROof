@@ -11,14 +11,14 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
 
 [Files]
-Source: "publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\SFROofs Safety Monitor"; Filename: "{app}\AlpacaSafetyMonitor.exe"
+Name: "{group}\SFROofs Safety Monitor"; Filename: "{app}\SFROofsSafetyMonitor.exe"
 Name: "{group}\{cm:UninstallProgram,SFROofs Safety Monitor}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\AlpacaSafetyMonitor.exe"; Description: "{cm:LaunchProgram,SFROofs Safety Monitor}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\SFROofsSafetyMonitor.exe"; Description: "{cm:LaunchProgram,SFROofs Safety Monitor}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 function InitializeSetup(): Boolean;

@@ -107,4 +107,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: SFROofsSafetyMonitor/SFROofAlpacaSafetyMonitorSetup.exe
+          files: SFROofsSafetyMonitor/SFROofsSafetyMonitorSetup.exe
