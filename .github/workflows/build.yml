@@ -1,4 +1,4 @@
-name: Build and Release Installer
+name: Build and Release Alpaca Safety Monitor
 
 on:
   push:
@@ -26,82 +26,63 @@ jobs:
             echo "VERSION=$version" >> $env:GITHUB_ENV
           }
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 6.0.x
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-
-      - name: Restore NuGet packages
+      - name: Restore dependencies
         run: dotnet restore SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj
 
-      - name: Build with dotnet
+      - name: Build Alpaca Safety Monitor
         run: dotnet build SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj -c Release -p:Version=${{ env.VERSION }}
 
-      - name: Prepare publish directory
+      - name: Publish Alpaca Safety Monitor
+        run: dotnet publish SFROofsSafetyMonitor/SFROofsSafetyMonitor.csproj -c Release -o publish --self-contained false -p:Version=${{ env.VERSION }}
+
+      - name: Copy configuration
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path "publish" -Force
-          
-          # Copy main assembly and dependencies (dotnet build output path)
-          Copy-Item "SFROofsSafetyMonitor/bin/Release/net48/*" "publish/" -Recurse -Force
-          
-          # Copy app.config as .dll.config (required for assembly binding)
-          Copy-Item "SFROofsSafetyMonitor/App.config" "publish/SFROofsSafetyMonitor.dll.config" -Force
-          
-          # Copy roofs.json config file
           Copy-Item "SFROofsSafetyMonitor/roofs.json" "publish/" -Force
-          
           Write-Host "Published files:"
           Get-ChildItem "publish" -Recurse
 
-      - name: Setup WiX
+      - name: Setup Inno Setup
         shell: pwsh
         run: |
-          # Download and install WiX 3.14
-          $url = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314.exe"
-          $output = "wix314.exe"
-          Write-Host "Downloading WiX from $url"
+          $url = "https://jrsoftware.org/download.php/is.exe"
+          $output = "innosetup.exe"
+          Write-Host "Downloading Inno Setup from $url"
           Invoke-WebRequest -Uri $url -OutFile $output
-          Write-Host "Installing WiX silently"
-          Start-Process -FilePath $output -ArgumentList "/quiet" -Wait
-          Write-Host "WiX installation completed"
-          
+          Write-Host "Installing Inno Setup silently"
+          Start-Process -FilePath $output -ArgumentList "/VERYSILENT" -Wait
+          Write-Host "Inno Setup installation completed"
+
       - name: Build Installer
         shell: pwsh
         run: |
-          $candlePath = "C:\Program Files (x86)\WiX Toolset v3.14\bin\candle.exe"
-          $lightPath = "C:\Program Files (x86)\WiX Toolset v3.14\bin\light.exe"
+          $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           
-          if (-not (Test-Path $candlePath)) {
-            Write-Host "Candle.exe not found at $candlePath"
-            Get-ChildItem "C:\Program Files (x86)" -Recurse -Name "candle.exe" -ErrorAction SilentlyContinue
+          if (-not (Test-Path $isccPath)) {
+            Write-Host "ISCC.exe not found at $isccPath"
+            Get-ChildItem "C:\Program Files (x86)" -Recurse -Name "ISCC.exe" -ErrorAction SilentlyContinue
             exit 1
           }
           
-          Write-Host "Building installer with WiX"
+          Write-Host "Building installer with Inno Setup"
           Write-Host "Using version: ${{ env.VERSION }}"
-          Write-Host "Available files in publish directory:"
-          Get-ChildItem "publish" -Recurse
           
-          Push-Location installer
-          & $candlePath SFROofsSafetyMonitorInstaller.wxs -dProductVersion="${{ env.VERSION }}.0"
+          Push-Location SFROofsSafetyMonitor
+          & $isccPath AlpacaInstaller.iss
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Candle failed with exit code $LASTEXITCODE"
-            Pop-Location
-            exit 1
-          }
-          
-          & $lightPath SFROofsSafetyMonitorInstaller.wixobj -o ..\SFROofsSafetyMonitorInstaller.msi
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Light failed with exit code $LASTEXITCODE"
+            Write-Host "Inno Setup failed with exit code $LASTEXITCODE"
             Pop-Location
             exit 1
           }
           Pop-Location
 
-      - name: Upload MSI to Release
+      - name: Upload Setup to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: SFROofsSafetyMonitorInstaller.msi
+          files: SFROofsSafetyMonitor/SFROofAlpacaSafetyMonitorSetup.exe
