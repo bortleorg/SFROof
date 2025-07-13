@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using SFROofsSafetyMonitor.Services;
+using SFROofsSafetyMonitor.Models;
 
-namespace AlpacaSafetyMonitor.Controllers;
+namespace SFROofsSafetyMonitor.Controllers;
 
 public class AlpacaResponse<T>
 {
@@ -26,6 +28,12 @@ public class SafetyMonitorController : ControllerBase
 {
     private static uint _serverTransactionId = 0;
     private static readonly HttpClient _httpClient = new();
+    private readonly ConfigurationService _configService;
+
+    public SafetyMonitorController(ConfigurationService configService)
+    {
+        _configService = configService;
+    }
 
     private AlpacaResponse<T> CreateResponse<T>(T value, uint clientTransactionId = 0)
     {
@@ -100,23 +108,47 @@ public class SafetyMonitorController : ControllerBase
         return Ok(CreateResponse(Array.Empty<string>(), clienttransactionid));
     }
 
+    // Action method
+    [HttpPut("action")]
+    public IActionResult Action([FromForm] string action, [FromForm] string parameters, [FromQuery] uint clienttransactionid = 0, [FromQuery] uint clientid = 0)
+    {
+        return Ok(CreateResponse("", clienttransactionid));
+    }
+
+    // Command completed
+    [HttpPut("commandblind")]
+    public IActionResult CommandBlind([FromForm] string command, [FromForm] bool raw, [FromQuery] uint clienttransactionid = 0, [FromQuery] uint clientid = 0)
+    {
+        return Ok(CreateResponse(clienttransactionid));
+    }
+
+    [HttpPut("commandbool")]
+    public IActionResult CommandBool([FromForm] string command, [FromForm] bool raw, [FromQuery] uint clienttransactionid = 0, [FromQuery] uint clientid = 0)
+    {
+        return Ok(CreateResponse(false, clienttransactionid));
+    }
+
+    [HttpPut("commandstring")]
+    public IActionResult CommandString([FromForm] string command, [FromForm] bool raw, [FromQuery] uint clienttransactionid = 0, [FromQuery] uint clientid = 0)
+    {
+        return Ok(CreateResponse("", clienttransactionid));
+    }
+
     // Safety Monitor specific property
     [HttpGet("issafe")]
     public async Task<IActionResult> GetIsSafe([FromQuery] uint clienttransactionid = 0, [FromQuery] uint clientid = 0)
     {
         try
         {
-            // Load roof configuration (simplified - just use first roof for now)
-            var roofs = LoadRoofs();
-            if (roofs.Count == 0)
+            // Get the selected roof configuration
+            var selectedRoof = await _configService.GetSelectedRoofAsync();
+            if (selectedRoof == null)
             {
-                return Ok(CreateResponse(false, clienttransactionid)); // No roofs configured, not safe
+                return Ok(CreateResponse(false, clienttransactionid)); // No roof selected, not safe
             }
 
-            var roof = roofs[0]; // Use first roof
-            var response = await _httpClient.GetStringAsync(roof.Url);
-            var status = response.Split('\n')[0].Trim().ToUpperInvariant();
-            var isSafe = status == "CLOSED";
+            var response = await _httpClient.GetStringAsync(selectedRoof.Url);
+            var isSafe = ParseSkyAlertStatus(response);
 
             return Ok(CreateResponse(isSafe, clienttransactionid));
         }
@@ -127,29 +159,33 @@ public class SafetyMonitorController : ControllerBase
         }
     }
 
-    private List<RoofConfig> LoadRoofs()
+    private static bool ParseSkyAlertStatus(string response)
     {
-        const string configFile = "roofs.json";
-        if (!System.IO.File.Exists(configFile))
-            return new List<RoofConfig>();
+        if (string.IsNullOrEmpty(response))
+            return false;
 
-        try
+        // SkyAlert format: "???2025-07-11 10:47:42PM Roof Status: CLOSED"
+        // Look for "Roof Status:" followed by the status
+        // OPEN = safe (telescope can operate), CLOSED = unsafe (telescope would hit roof)
+        var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
         {
-            var json = System.IO.File.ReadAllText(configFile);
-            return JsonConvert.DeserializeObject<List<RoofConfig>>(json) ?? new List<RoofConfig>();
+            var trimmedLine = line.Trim();
+            
+            // Look for "Roof Status:" in the line
+            var roofStatusIndex = trimmedLine.IndexOf("Roof Status:", StringComparison.OrdinalIgnoreCase);
+            if (roofStatusIndex >= 0)
+            {
+                // Extract everything after "Roof Status:"
+                var statusPart = trimmedLine.Substring(roofStatusIndex + "Roof Status:".Length).Trim();
+                
+                // Check if it contains "OPEN" (safe for telescope operation)
+                return statusPart.IndexOf("OPEN", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
         }
-        catch
-        {
-            return new List<RoofConfig>();
-        }
+
+        // If no "Roof Status:" found, fall back to looking for "OPEN" anywhere in the response
+        return response.IndexOf("OPEN", StringComparison.OrdinalIgnoreCase) >= 0;
     }
-}
-
-public class RoofConfig
-{
-    [JsonProperty("name")]
-    public string Name { get; set; } = "";
-    
-    [JsonProperty("url")]
-    public string Url { get; set; } = "";
 }
