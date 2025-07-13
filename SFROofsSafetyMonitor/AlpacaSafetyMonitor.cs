@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 
 namespace SFROofsSafetyMonitor
 {
-    [Guid("D1994477-2B66-4883-AB15-6FCF293E7497")]
+    [Guid("A1B2C3D4-E5F6-7890-1234-567890ABCDEF")]
     [ClassInterface(ClassInterfaceType.None)]
     [ComVisible(true)]
     [ProgId("ASCOM.SFROofsSafetyMonitor.SafetyMonitor")]

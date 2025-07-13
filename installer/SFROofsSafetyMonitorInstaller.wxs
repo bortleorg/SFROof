@@ -18,7 +18,7 @@
     </Directory>
     
     <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="MainExecutable" Guid="6db2e375-c1da-41b1-9c9f-73eb01dc55eb">
+      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-1234-567890ABCDEF">
         <File Id="MainDLL" Source="../publish/SFROofsSafetyMonitor.dll" KeyPath="yes" />
         <File Source="../publish/SFROofsSafetyMonitor.pdb" />
         <File Source="../publish/SFROofsSafetyMonitor.dll.config" />
