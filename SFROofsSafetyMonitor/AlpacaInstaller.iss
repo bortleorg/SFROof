@@ -1,6 +1,6 @@
 [Setup]
 AppName=SFROofs Safety Monitor
-AppVersion=1.0.0
+AppVersion={#GetEnv('VERSION') != '' ? GetEnv('VERSION') : '1.0.0'}
 AppPublisher=SFROof Development
 DefaultDirName={pf}\SFROof\SFROofsSafetyMonitor
 DefaultGroupName=SFROofs Safety Monitor
@@ -18,9 +18,39 @@ Name: "{group}\SFROofs Safety Monitor"; Filename: "{app}\SFROofsSafetyMonitor.ex
 Name: "{group}\{cm:UninstallProgram,SFROofs Safety Monitor}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\SFROofsSafetyMonitor.exe"; Description: "{cm:LaunchProgram,SFROofs Safety Monitor}"; Flags: nowait postinstall skipifsilent
+Filename: "sc"; Parameters: "create ""SFROofsSafetyMonitor"" binPath= ""{app}\SFROofsSafetyMonitor.exe"" start= auto"; Flags: runhidden; Description: "Install as Windows Service"; Check: InstallAsService
+Filename: "sc"; Parameters: "start ""SFROofsSafetyMonitor"""; Flags: runhidden; Check: InstallAsService and StartServiceNow
+Filename: "{app}\SFROofsSafetyMonitor.exe"; Description: "{cm:LaunchProgram,SFROofs Safety Monitor}"; Flags: nowait postinstall skipifsilent; Check: not InstallAsService
+
+[UninstallRun]
+Filename: "sc"; Parameters: "stop ""SFROofsSafetyMonitor"""; Flags: runhidden; RunOnceId: "StopService"
+Filename: "sc"; Parameters: "delete ""SFROofsSafetyMonitor"""; Flags: runhidden; RunOnceId: "DeleteService"
 
 [Code]
+var
+  ServicePage: TInputOptionWizardPage;
+
+procedure InitializeWizard;
+begin
+  ServicePage := CreateInputOptionPage(wpSelectTasks,
+    'Service Installation', 'Choose how to run SFROofs Safety Monitor',
+    'You can run the Safety Monitor as a Windows Service (recommended) or as a regular application.',
+    True, False);
+  ServicePage.Add('Install as Windows Service (recommended - runs automatically)');
+  ServicePage.Add('Run as regular application');
+  ServicePage.Values[0] := True;
+end;
+
+function InstallAsService: Boolean;
+begin
+  Result := ServicePage.Values[0];
+end;
+
+function StartServiceNow: Boolean;
+begin
+  Result := MsgBox('Start the SFROofs Safety Monitor service now?', mbConfirmation, MB_YESNO) = IDYES;
+end;
+
 function InitializeSetup(): Boolean;
 begin
   Result := True;

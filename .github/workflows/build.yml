@@ -93,6 +93,9 @@ jobs:
           Write-Host "Building installer with Inno Setup"
           Write-Host "Using version: ${{ env.VERSION }}"
           
+          # Set environment variable for Inno Setup
+          $env:VERSION = "${{ env.VERSION }}"
+          
           Push-Location SFROofsSafetyMonitor
           & $isccPath AlpacaInstaller.iss
           if ($LASTEXITCODE -ne 0) {
