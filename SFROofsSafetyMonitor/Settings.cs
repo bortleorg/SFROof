@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Configuration;
 
 namespace SFROofsSafetyMonitor
 {
@@ -11,7 +10,7 @@ namespace SFROofsSafetyMonitor
             "SFROofsSafetyMonitor",
             "settings.config");
 
-        public static string? SelectedRoofName
+        public static string SelectedRoofName
         {
             get
             {

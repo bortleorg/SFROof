@@ -25,10 +25,6 @@
         <File Source="../publish/ASCOM.DeviceInterfaces.dll" />
         <File Source="../publish/ASCOM.Exceptions.dll" />
         <File Source="../publish/Newtonsoft.Json.dll" />
-        <File Source="../publish/System.Configuration.ConfigurationManager.dll" />
-        <File Source="../publish/System.Security.AccessControl.dll" />
-        <File Source="../publish/System.Security.Permissions.dll" />
-        <File Source="../publish/System.Security.Principal.Windows.dll" />
         <File Source="../publish/roofs.json" />
         
         <!-- ASCOM Platform registration -->
