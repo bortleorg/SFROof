@@ -26,7 +26,7 @@ public class SafetyMonitorSettings
     public bool ManualOverrideEnabled { get; set; } = false;
     public bool ManualOverrideValue { get; set; } = false; // true = safe, false = unsafe
     public bool SolarLockoutEnabled { get; set; } = true;
-    public double MaxSolarAltitude { get; set; } = -5.0; // degrees, negative means below horizon
+    public double MaxSolarAltitude { get; set; } = 0.0; // Maximum safe solar altitude - observatory is UNSAFE when sun is above this threshold
     public double ObservatoryLatitude { get; set; } = 0.0; // degrees
     public double ObservatoryLongitude { get; set; } = 0.0; // degrees
     public string ObservatoryTimezone { get; set; } = string.Empty;

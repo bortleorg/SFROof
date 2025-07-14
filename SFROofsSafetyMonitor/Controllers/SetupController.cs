@@ -28,7 +28,7 @@ public class SetupController : ControllerBase
             $"<option value='{r.Name}' {(r.Name == settings.SelectedRoofName ? "selected" : "")}>{r.Name}</option>"));
 
         var selectedRoofInfo = selectedRoof != null 
-            ? $"<p><strong>Selected Roof:</strong> {selectedRoof.Name}</p><p><strong>URL:</strong> {selectedRoof.Url}</p>"
+            ? $"<p><strong>Selected Roof:</strong> {selectedRoof.Name}</p><p><strong>URL:</strong> <a href='{selectedRoof.Url}' target='_blank'>{selectedRoof.Url}</a></p>"
             : "<p><strong>No roof selected!</strong> Please select a roof below.</p>";
 
         var locationSection = locationInfo != null 
@@ -45,6 +45,10 @@ public class SetupController : ControllerBase
         <div class='roof-selection'>
             <h2>Manual Override</h2>
             <p>Manual override allows you to force the safety monitor to return a specific value, bypassing all other checks.</p>
+            
+            <div id='override-status' style='margin-top: 10px; padding: 10px; border-radius: 5px;'>
+                <span id='overrideStatusIndicator' class='status-indicator'>Loading...</span>
+            </div>
             
             <form id='overrideForm'>
                 <label>
@@ -74,15 +78,20 @@ public class SetupController : ControllerBase
             <h2>Solar Altitude Lockout</h2>
             <p>Prevents the system from reporting SAFE when the sun is above a specified altitude (to protect during daylight operations).</p>
             
+            <div id='solar-status' style='margin-top: 10px; padding: 10px; border-radius: 5px;'>
+                <span id='solarStatusIndicator' class='status-indicator'>Loading...</span><br />
+                <span id='currentSolarInfo'>Loading...</span>
+            </div>
+            
             <form id='solarForm'>
                 <label>
                     <input type='checkbox' id='solarEnabled' {(settings.SolarLockoutEnabled ? "checked" : "")}> 
                     Enable Solar Lockout
                 </label><br><br>
                 
-                <label for='maxAltitude'>Maximum Solar Altitude (degrees):</label><br>
+                <label for='maxAltitude'>Maximum Safe Solar Altitude (degrees):</label><br>
                 <input type='number' id='maxAltitude' step='0.1' value='{settings.MaxSolarAltitude}' style='width: 100px;'><br>
-                <small>Negative values = below horizon (e.g., -5 = 5 degrees below horizon)</small><br><br>
+                <small>Observatory is UNSAFE when sun is above this altitude. Negative values = below horizon (e.g., -5 = 5 degrees below horizon)</small><br><br>
                 
                 <button type='submit'>Save Solar Settings</button>
             </form>
@@ -93,7 +102,7 @@ public class SetupController : ControllerBase
         var html = $@"<!DOCTYPE html>
 <html>
 <head>
-    <title>SFR Roof Safety Monitor Setup</title>
+    <title>SFRO Roof Safety Monitor Setup</title>
     <meta charset='UTF-8'>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }}
@@ -114,26 +123,26 @@ public class SetupController : ControllerBase
         button:hover {{ background-color: #0056b3; }}
         .success {{ color: #28a745; font-weight: bold; }}
         .error {{ color: #dc3545; font-weight: bold; }}
+        .status-indicator {{ padding: 4px 8px; border-radius: 3px; font-weight: bold; }}
+        .status-safe {{ background-color: #d4edda; color: #155724; }}
+        .status-unsafe {{ background-color: #f8d7da; color: #721c24; }}
+        .status-unknown {{ background-color: #fff3cd; color: #856404; }}
     </style>
 </head>
 <body>
     <div class='container'>
-        <h1>SFR Roof Safety Monitor Setup</h1>
+        <h1>SFRO Roof Safety Monitor Setup</h1>
         
         <div id='current-status' class='status unknown'>
             Current Status: Loading...
-        </div>
-
-        <div id='solar-status' class='status unknown' style='margin-top: 10px;'>
-            <strong>Solar Status:</strong> <span id='currentSolarInfo'>Loading...</span>
         </div>
 
         <div class='roof-selection'>
             <h2>Roof Selection</h2>
             {selectedRoofInfo}
             
-            <div id='roof-status' style='margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;'>
-                <strong>Roof Status Details:</strong> <span id='roofStatusDetails'>Loading...</span>
+            <div id='roof-status' style='margin-top: 10px; padding: 10px; border-radius: 5px;'>
+                <span id='roofStatusDetails'>Loading...</span>
             </div>
             
             <form id='roofForm'>
@@ -158,10 +167,10 @@ public class SetupController : ControllerBase
             try {{
                 const response = await fetch('/api/v1/safetymonitor/0/issafe');
                 const data = await response.json();
-                const isSafe = data.Value;
+                const isSafe = data.value; // lowercase 'value' to match API response
                 const statusDiv = document.getElementById('current-status');
                 statusDiv.className = 'status ' + (isSafe ? 'safe' : 'unsafe');
-                statusDiv.innerHTML = 'Current Status: ' + (isSafe ? 'SAFE (Roof Open - Telescope can operate)' : 'UNSAFE (Roof Closed or Unknown)');
+                statusDiv.innerHTML = 'Current Status: ' + (isSafe ? 'SAFE' : 'UNSAFE');
             }} catch (error) {{
                 const statusDiv = document.getElementById('current-status');
                 statusDiv.className = 'status unknown';
@@ -180,18 +189,29 @@ public class SetupController : ControllerBase
                 const data = await response.json();
                 const roof = data.value;
                 
-                let statusText = `${{roof.message}}`;
-                if (roof.isConnected !== undefined) {{
-                    statusText += ` | Connected: ${{roof.isConnected ? 'Yes' : 'No'}}`;
-                }}
-                if (roof.lastUpdateTime) {{
-                    const updateTime = new Date(roof.lastUpdateTime).toLocaleString();
-                    statusText += ` | Last Update: ${{updateTime}}`;
+                // Update roof status background based on roof state
+                const roofDiv = document.getElementById('roof-status');
+                
+                // Check if the roof message indicates it's open and safe
+                const isRoofSafe = roof.message && (roof.message.includes('OPEN (SAFE)') || roof.message.includes('OPEN') && roof.message.includes('SAFE'));
+                
+                if (isRoofSafe) {{
+                    roofDiv.style.backgroundColor = '#d4edda';
+                }} else {{
+                    roofDiv.style.backgroundColor = '#f8d7da';
                 }}
                 
-                document.getElementById('roofStatusDetails').textContent = statusText;
+                let statusText = `${{roof.message}}`;
+                if (roof.lastUpdateTime) {{
+                    const updateTime = new Date(roof.lastUpdateTime).toLocaleString();
+                    statusText += ` <br /> Last Update: ${{updateTime}}`;
+                }}
+                
+                document.getElementById('roofStatusDetails').innerHTML = statusText;
             }} catch (error) {{
-                document.getElementById('roofStatusDetails').textContent = 'Error loading roof status details';
+                const roofDiv = document.getElementById('roof-status');
+                roofDiv.style.backgroundColor = '#fff3cd';
+                document.getElementById('roofStatusDetails').innerHTML = 'Error loading roof status details';
             }}
         }}
 
@@ -205,6 +225,23 @@ public class SetupController : ControllerBase
                 const response = await fetch('/api/v1/safetymonitor/0/solarstatus');
                 const data = await response.json();
                 const solar = data.value;
+                
+                // Update solar status indicator
+                const solarIndicator = document.getElementById('solarStatusIndicator');
+                const solarDiv = document.getElementById('solar-status');
+                if (solar.isLocked) {{
+                    solarIndicator.textContent = 'UNSAFE (Locked)';
+                    solarIndicator.className = 'status-indicator status-unsafe';
+                    solarDiv.style.backgroundColor = '#f8d7da';
+                }} else if (!solar.enabled) {{
+                    solarIndicator.textContent = 'Disabled';
+                    solarIndicator.className = 'status-indicator status-safe';
+                    solarDiv.style.backgroundColor = '#d4edda';
+                }} else {{
+                    solarIndicator.textContent = 'SAFE (Not Locked)';
+                    solarIndicator.className = 'status-indicator status-safe';
+                    solarDiv.style.backgroundColor = '#d4edda';
+                }}
                 
                 let statusText = '';
                 
@@ -226,11 +263,11 @@ public class SetupController : ControllerBase
                             if (lockout.isCurrentlyInLockout) {{
                                 // Currently locked
                                 const endTime = new Date(lockout.lockoutEnd).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
-                                statusText += `<br>Currently Locked: Yes<br>Unlock time: ${{endTime}}`;
+                                statusText += `<br>Currently Solar Locked: Yes<br>Solar unlock time: ${{endTime}}`;
                             }} else {{
                                 // Not currently locked, show next lock time
                                 const startTime = new Date(lockout.lockoutStart).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
-                                statusText += `<br>Currently Locked: No<br>Lock time: ${{startTime}}`;
+                                statusText += `<br>Currently Solar Locked: No<br>Solar lock time: ${{startTime}}`;
                             }}
                         }} else {{
                             // Solar lockout enabled but no lockout period (sun stays below threshold)
@@ -244,6 +281,11 @@ public class SetupController : ControllerBase
                 
                 document.getElementById('currentSolarInfo').innerHTML = statusText;
             }} catch (error) {{
+                const solarIndicator = document.getElementById('solarStatusIndicator');
+                const solarDiv = document.getElementById('solar-status');
+                solarIndicator.textContent = 'Unknown';
+                solarIndicator.className = 'status-indicator status-unknown';
+                solarDiv.style.backgroundColor = '#fff3cd';
                 document.getElementById('currentSolarInfo').textContent = 'Error loading solar status';
             }}
         }}
@@ -251,10 +293,52 @@ public class SetupController : ControllerBase
         updateSolarStatus();
         setInterval(updateSolarStatus, 30000); // Update every 30 seconds
 
+        // Update manual override status
+        function updateOverrideStatus() {{
+            const enabled = document.getElementById('overrideEnabled').checked;
+            const overrideIndicator = document.getElementById('overrideStatusIndicator');
+            const overrideDiv = document.getElementById('override-status');
+            
+            if (!enabled) {{
+                overrideIndicator.textContent = 'SAFE (Disabled)';
+                overrideIndicator.className = 'status-indicator status-safe';
+                overrideDiv.style.backgroundColor = '#d4edda';
+            }} else {{
+                const valueRadios = document.getElementsByName('overrideValue');
+                let value = false;
+                
+                for (const radio of valueRadios) {{
+                    if (radio.checked) {{
+                        value = radio.value === 'true';
+                        break;
+                    }}
+                }}
+                
+                if (value) {{
+                    overrideIndicator.textContent = 'SAFE (Forced)';
+                    overrideIndicator.className = 'status-indicator status-safe';
+                    overrideDiv.style.backgroundColor = '#d4edda';
+                }} else {{
+                    overrideIndicator.textContent = 'UNSAFE (Forced)';
+                    overrideIndicator.className = 'status-indicator status-unsafe';
+                    overrideDiv.style.backgroundColor = '#f8d7da';
+                }}
+            }}
+        }}
+
+        // Initial override status check
+        updateOverrideStatus();
+
         // Manual override form handler
         document.getElementById('overrideEnabled').addEventListener('change', function() {{
             const controls = document.getElementById('overrideControls');
             controls.style.display = this.checked ? 'block' : 'none';
+            updateOverrideStatus();
+        }});
+
+        // Add event listeners to radio buttons to update status
+        document.getElementsByName('overrideValue').forEach(radio => {{
+            radio.addEventListener('change', updateOverrideStatus);
         }});
 
         document.getElementById('overrideForm').addEventListener('submit', async function(e) {{
@@ -285,7 +369,10 @@ public class SetupController : ControllerBase
 
                 if (response.ok) {{
                     document.getElementById('overrideMessage').innerHTML = '<p class=""success"">Override settings saved successfully!</p>';
-                    setTimeout(() => refreshStatus(), 1000); // Refresh status to show override effect
+                    setTimeout(() => {{
+                        refreshStatus();
+                        updateOverrideStatus();
+                    }}, 1000);
                 }} else {{
                     document.getElementById('overrideMessage').innerHTML = '<p class=""error"">Failed to save override settings.</p>';
                 }}

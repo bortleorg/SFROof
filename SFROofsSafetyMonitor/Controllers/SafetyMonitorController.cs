@@ -165,10 +165,10 @@ public class SafetyMonitorController : ControllerBase
                 {
                     _logger.LogInformation("Solar lockout active - Sun altitude {Altitude:F2}° is above limit {Limit:F2}°", 
                         currentSolarAltitude, settings.MaxSolarAltitude);
-                    return Ok(CreateResponse(false, clienttransactionid)); // Not safe due to sun altitude
+                    return Ok(CreateResponse(false, clienttransactionid)); // Not safe - sun is too high
                 }
                 
-                _logger.LogDebug("Solar altitude check passed - Sun altitude {Altitude:F2}° is below limit {Limit:F2}°", 
+                _logger.LogDebug("Solar altitude check passed - Sun altitude {Altitude:F2}° is above limit {Limit:F2}°", 
                     currentSolarAltitude, settings.MaxSolarAltitude);
             }
             
@@ -385,6 +385,135 @@ public class SafetyMonitorController : ControllerBase
                 error = "Error calculating lockout period"
             }, clienttransactionid));
         }
+    }
+
+    [HttpGet("roofstatus")]
+    public async Task<IActionResult> GetRoofStatus([FromQuery] uint clienttransactionid = 0)
+    {
+        try
+        {
+            var selectedRoof = await _configService.GetSelectedRoofAsync();
+            if (selectedRoof == null)
+            {
+                var noRoofResult = new
+                {
+                    message = "No roof selected",
+                    isConnected = false,
+                    lastUpdateTime = (DateTime?)null
+                };
+                return Ok(CreateResponse(noRoofResult, clienttransactionid));
+            }
+
+            try
+            {
+                var response = await _httpClient.GetStringAsync(selectedRoof.Url);
+                var isSafe = ParseSkyAlertStatus(response);
+                
+                // Parse additional details from the response
+                var timestamp = ExtractTimestamp(response);
+                var statusText = ExtractStatusText(response);
+                
+                var result = new
+                {
+                    message = $"{selectedRoof.Name}: {statusText} ({(isSafe ? "SAFE" : "UNSAFE")})",
+                    isConnected = true,
+                    lastUpdateTime = timestamp,
+                    roofName = selectedRoof.Name,
+                    url = selectedRoof.Url,
+                    rawResponse = response.Length > 200 ? response.Substring(0, 200) + "..." : response
+                };
+                
+                return Ok(CreateResponse(result, clienttransactionid));
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, "Failed to connect to roof URL: {Url}", selectedRoof.Url);
+                var connectionErrorResult = new
+                {
+                    message = $"{selectedRoof.Name}: Connection failed",
+                    isConnected = false,
+                    lastUpdateTime = (DateTime?)null,
+                    roofName = selectedRoof.Name,
+                    url = selectedRoof.Url,
+                    error = ex.Message
+                };
+                return Ok(CreateResponse(connectionErrorResult, clienttransactionid));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting roof status details");
+            var errorResult = new
+            {
+                message = "Error loading roof status",
+                isConnected = false,
+                lastUpdateTime = (DateTime?)null,
+                error = ex.Message
+            };
+            return Ok(CreateResponse(errorResult, clienttransactionid));
+        }
+    }
+
+    private static DateTime? ExtractTimestamp(string response)
+    {
+        if (string.IsNullOrEmpty(response))
+            return null;
+
+        // SkyAlert format: "???2025-07-11 10:47:42PM Roof Status: CLOSED"
+        // Look for date pattern like "2025-07-11 10:47:42PM"
+        var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            
+            // Look for a date pattern (YYYY-MM-DD HH:MM:SSAM/PM)
+            var match = System.Text.RegularExpressions.Regex.Match(trimmedLine, 
+                @"(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}:\d{2}(?:AM|PM))");
+            
+            if (match.Success)
+            {
+                if (DateTime.TryParse(match.Groups[1].Value, out var timestamp))
+                {
+                    return timestamp;
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    private static string ExtractStatusText(string response)
+    {
+        if (string.IsNullOrEmpty(response))
+            return "Unknown";
+
+        // Look for "Roof Status:" followed by the status
+        var lines = response.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            
+            var roofStatusIndex = trimmedLine.IndexOf("Roof Status:", StringComparison.OrdinalIgnoreCase);
+            if (roofStatusIndex >= 0)
+            {
+                var statusPart = trimmedLine.Substring(roofStatusIndex + "Roof Status:".Length).Trim();
+                return statusPart;
+            }
+        }
+
+        // If no "Roof Status:" found, return first non-empty line
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            if (!string.IsNullOrEmpty(trimmedLine))
+            {
+                return trimmedLine.Length > 50 ? trimmedLine.Substring(0, 50) + "..." : trimmedLine;
+            }
+        }
+
+        return "No status found";
     }
 }
 
