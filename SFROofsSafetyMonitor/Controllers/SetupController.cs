@@ -47,7 +47,7 @@ public class SetupController : ControllerBase
             <p>Manual override allows you to force the safety monitor to return a specific value, bypassing all other checks.</p>
             
             <div id='override-status' style='margin-top: 10px; padding: 10px; border-radius: 5px;'>
-                <span id='overrideStatusIndicator' class='status-indicator'>Loading...</span>
+                <span id='overrideStatusIndicator'>Loading...</span>
             </div>
             
             <form id='overrideForm'>
@@ -79,7 +79,7 @@ public class SetupController : ControllerBase
             <p>Prevents the system from reporting SAFE when the sun is above a specified altitude (to protect during daylight operations).</p>
             
             <div id='solar-status' style='margin-top: 10px; padding: 10px; border-radius: 5px;'>
-                <span id='solarStatusIndicator' class='status-indicator'>Loading...</span><br />
+                <span id='solarStatusIndicator'>Loading...</span><br />
                 <span id='currentSolarInfo'>Loading...</span>
             </div>
             
@@ -146,7 +146,7 @@ public class SetupController : ControllerBase
             </div>
             
             <form id='roofForm'>
-                <label for='roofSelect'>Select Roof to Monitor:</label><br>
+                <label for='roofSelect'>Roof to Monitor:</label><br>
                 <select id='roofSelect' name='roofName'>
                     <option value=''>-- Select a Roof --</option>
                     {roofOptions}
@@ -231,15 +231,15 @@ public class SetupController : ControllerBase
                 const solarDiv = document.getElementById('solar-status');
                 if (solar.isLocked) {{
                     solarIndicator.textContent = 'UNSAFE (Locked)';
-                    solarIndicator.className = 'status-indicator status-unsafe';
+                    // solarIndicator.className = 'status-indicator status-unsafe';
                     solarDiv.style.backgroundColor = '#f8d7da';
                 }} else if (!solar.enabled) {{
                     solarIndicator.textContent = 'Disabled';
-                    solarIndicator.className = 'status-indicator status-safe';
+                    // solarIndicator.className = 'status-indicator status-safe';
                     solarDiv.style.backgroundColor = '#d4edda';
                 }} else {{
                     solarIndicator.textContent = 'SAFE (Not Locked)';
-                    solarIndicator.className = 'status-indicator status-safe';
+                    // solarIndicator.className = 'status-indicator status-safe';
                     solarDiv.style.backgroundColor = '#d4edda';
                 }}
                 
@@ -284,7 +284,7 @@ public class SetupController : ControllerBase
                 const solarIndicator = document.getElementById('solarStatusIndicator');
                 const solarDiv = document.getElementById('solar-status');
                 solarIndicator.textContent = 'Unknown';
-                solarIndicator.className = 'status-indicator status-unknown';
+                // solarIndicator.className = 'status-indicator status-unknown';
                 solarDiv.style.backgroundColor = '#fff3cd';
                 document.getElementById('currentSolarInfo').textContent = 'Error loading solar status';
             }}
@@ -301,7 +301,7 @@ public class SetupController : ControllerBase
             
             if (!enabled) {{
                 overrideIndicator.textContent = 'SAFE (Disabled)';
-                overrideIndicator.className = 'status-indicator status-safe';
+                // overrideIndicator.className = 'status-indicator status-safe';
                 overrideDiv.style.backgroundColor = '#d4edda';
             }} else {{
                 const valueRadios = document.getElementsByName('overrideValue');
@@ -316,11 +316,11 @@ public class SetupController : ControllerBase
                 
                 if (value) {{
                     overrideIndicator.textContent = 'SAFE (Forced)';
-                    overrideIndicator.className = 'status-indicator status-safe';
+                    // overrideIndicator.className = 'status-indicator status-safe';
                     overrideDiv.style.backgroundColor = '#d4edda';
                 }} else {{
                     overrideIndicator.textContent = 'UNSAFE (Forced)';
-                    overrideIndicator.className = 'status-indicator status-unsafe';
+                    // overrideIndicator.className = 'status-indicator status-unsafe';
                     overrideDiv.style.backgroundColor = '#f8d7da';
                 }}
             }}
