@@ -275,25 +275,41 @@ public class SafetyMonitorController : ControllerBase
         {
             var settings = await _configService.GetSettingsAsync();
             
-            if (!settings.SolarLockoutEnabled || settings.ObservatoryLatitude == 0 || settings.ObservatoryLongitude == 0)
+            // Check if we have coordinates - try from settings first, then from location info
+            double latitude = settings.ObservatoryLatitude;
+            double longitude = settings.ObservatoryLongitude;
+            
+            if (latitude == 0 && longitude == 0)
             {
-                var disabledResult = new
+                // Try to get coordinates from location info
+                var locationInfo = await _configService.GetLocationInfoAsync();
+                if (locationInfo != null)
+                {
+                    latitude = locationInfo.Latitude;
+                    longitude = locationInfo.Longitude;
+                }
+            }
+            
+            if (latitude == 0 && longitude == 0)
+            {
+                var noLocationResult = new
                 {
                     Enabled = settings.SolarLockoutEnabled,
                     CurrentAltitude = (double?)null,
                     MaxAltitude = settings.MaxSolarAltitude,
                     IsLocked = false,
-                    Message = "Solar lockout disabled or coordinates not set"
+                    Message = "Observatory coordinates not set"
                 };
-                return Ok(CreateResponse(disabledResult, clienttransactionid));
+                return Ok(CreateResponse(noLocationResult, clienttransactionid));
             }
             
+            // Always calculate current solar altitude when coordinates are available
             var currentSolarAltitude = _solarService.CalculateSolarAltitude(
-                settings.ObservatoryLatitude, 
-                settings.ObservatoryLongitude, 
+                latitude, 
+                longitude, 
                 DateTime.UtcNow);
             
-            var isLocked = currentSolarAltitude > settings.MaxSolarAltitude;
+            var isLocked = settings.SolarLockoutEnabled && currentSolarAltitude > settings.MaxSolarAltitude;
             
             var result = new
             {
@@ -301,7 +317,9 @@ public class SafetyMonitorController : ControllerBase
                 CurrentAltitude = Math.Round(currentSolarAltitude, 2),
                 MaxAltitude = settings.MaxSolarAltitude,
                 IsLocked = isLocked,
-                Message = isLocked ? "Solar lockout active - Sun too high" : "Solar lockout OK"
+                Message = settings.SolarLockoutEnabled 
+                    ? (isLocked ? "Solar lockout active - Sun too high" : "Solar lockout OK")
+                    : "Solar lockout disabled"
             };
             
             return Ok(CreateResponse(result, clienttransactionid));
@@ -319,6 +337,7 @@ public class SafetyMonitorController : ControllerBase
         try
         {
             var settings = await _configService.GetSettingsAsync();
+            var locationInfo = await _configService.GetLocationInfoAsync();
             
             if (!settings.SolarLockoutEnabled || settings.ObservatoryLatitude == 0 || settings.ObservatoryLongitude == 0)
             {
@@ -329,16 +348,17 @@ public class SafetyMonitorController : ControllerBase
                 }, clienttransactionid));
             }
 
+            var timezone = locationInfo?.Timezone ?? "UTC";
             var today = DateTime.Today;
             (DateTime? lockoutStart, DateTime? lockoutEnd) = _solarService.GetLockoutPeriod(
-                today, settings.ObservatoryLatitude, settings.ObservatoryLongitude, settings.MaxSolarAltitude);
+                today, settings.ObservatoryLatitude, settings.ObservatoryLongitude, settings.MaxSolarAltitude, timezone);
 
             // If no lockout today, check tomorrow
             if (lockoutStart == null)
             {
                 var tomorrow = today.AddDays(1);
                 (lockoutStart, lockoutEnd) = _solarService.GetLockoutPeriod(
-                    tomorrow, settings.ObservatoryLatitude, settings.ObservatoryLongitude, settings.MaxSolarAltitude);
+                    tomorrow, settings.ObservatoryLatitude, settings.ObservatoryLongitude, settings.MaxSolarAltitude, timezone);
             }
 
             var result = new

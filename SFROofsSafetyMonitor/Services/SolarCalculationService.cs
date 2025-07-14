@@ -45,16 +45,31 @@ public class SolarCalculationService
     /// <param name="latitude">Observatory latitude in degrees</param>
     /// <param name="longitude">Observatory longitude in degrees</param>
     /// <param name="altitudeThreshold">Altitude threshold in degrees</param>
-    /// <returns>Tuple of (lockout start time, lockout end time) in local time, or null if no lockout occurs</returns>
-    public (DateTime? lockoutStart, DateTime? lockoutEnd) GetLockoutPeriod(DateTime date, double latitude, double longitude, double altitudeThreshold)
+    /// <param name="timezone">Observatory timezone (e.g., "America/Chicago")</param>
+    /// <returns>Tuple of (lockout start time, lockout end time) in observatory's local time, or null if no lockout occurs</returns>
+    public (DateTime? lockoutStart, DateTime? lockoutEnd) GetLockoutPeriod(DateTime date, double latitude, double longitude, double altitudeThreshold, string timezone = "UTC")
     {
         try
         {
+            // Get the observatory's timezone
+            TimeZoneInfo observatoryTz;
+            try
+            {
+                observatoryTz = TimeZoneInfo.FindSystemTimeZoneById(timezone);
+            }
+            catch
+            {
+                // Fallback to UTC if timezone is invalid
+                observatoryTz = TimeZoneInfo.Utc;
+                _logger.LogWarning("Invalid timezone '{Timezone}', falling back to UTC", timezone);
+            }
+            
             // Create observer location
             var observer = new Observer(latitude, longitude, 0.0);
             
-            // Convert to UTC for calculations
-            var utcDate = date.ToUniversalTime().Date;
+            // Convert date to observatory's timezone, then to UTC for calculations
+            var observatoryDate = TimeZoneInfo.ConvertTime(date.Date, observatoryTz);
+            var utcDate = observatoryDate.ToUniversalTime();
             
             // Use Astronomy Engine's built-in search functions for more precision
             var startTime = new AstroTime(utcDate);
@@ -70,14 +85,23 @@ public class SolarCalculationService
                 var risingTime = Astronomy.SearchAltitude(Body.Sun, observer, Direction.Rise, startTime, 1.0, altitudeThreshold);
                 if (risingTime != null)
                 {
-                    lockoutStart = risingTime.ToUtcDateTime().ToLocalTime();
+                    lockoutStart = TimeZoneInfo.ConvertTimeFromUtc(risingTime.ToUtcDateTime(), observatoryTz);
+                    
+                    // Search for setting time AFTER the rising time
+                    var settingTime = Astronomy.SearchAltitude(Body.Sun, observer, Direction.Set, risingTime, 1.0, altitudeThreshold);
+                    if (settingTime != null)
+                    {
+                        lockoutEnd = TimeZoneInfo.ConvertTimeFromUtc(settingTime.ToUtcDateTime(), observatoryTz);
+                    }
                 }
-                
-                // Search for when sun sets below threshold (descending crossing)  
-                var settingTime = Astronomy.SearchAltitude(Body.Sun, observer, Direction.Set, startTime, 1.0, altitudeThreshold);
-                if (settingTime != null)
+                else
                 {
-                    lockoutEnd = settingTime.ToUtcDateTime().ToLocalTime();
+                    // No rising time found - check if sun stays below threshold all day
+                    var settingTime = Astronomy.SearchAltitude(Body.Sun, observer, Direction.Set, startTime, 1.0, altitudeThreshold);
+                    if (settingTime != null)
+                    {
+                        lockoutEnd = TimeZoneInfo.ConvertTimeFromUtc(settingTime.ToUtcDateTime(), observatoryTz);
+                    }
                 }
                 
                 // If we found a setting time but no rising time, the sun might already be above threshold at start of day
@@ -86,7 +110,7 @@ public class SolarCalculationService
                     var initialAltitude = CalculateSolarAltitude(latitude, longitude, utcDate);
                     if (initialAltitude > altitudeThreshold)
                     {
-                        lockoutStart = date.Date; // Start of day
+                        lockoutStart = TimeZoneInfo.ConvertTimeFromUtc(utcDate, observatoryTz); // Start of day in observatory time
                     }
                 }
                 
@@ -96,14 +120,14 @@ public class SolarCalculationService
                     var finalAltitude = CalculateSolarAltitude(latitude, longitude, utcDate.AddDays(1).AddSeconds(-1));
                     if (finalAltitude > altitudeThreshold)
                     {
-                        lockoutEnd = date.Date.AddDays(1).AddSeconds(-1); // End of day
+                        lockoutEnd = TimeZoneInfo.ConvertTimeFromUtc(utcDate.AddDays(1).AddSeconds(-1), observatoryTz); // End of day in observatory time
                     }
                 }
             }
             catch (Exception searchEx)
             {
                 _logger.LogWarning(searchEx, "Precise altitude search failed, falling back to sampling method");
-                return GetLockoutPeriodFallback(date, latitude, longitude, altitudeThreshold);
+                return GetLockoutPeriodFallback(date, latitude, longitude, altitudeThreshold, observatoryTz);
             }
             
             return (lockoutStart, lockoutEnd);
@@ -116,10 +140,11 @@ public class SolarCalculationService
         }
     }
     
-    private (DateTime? lockoutStart, DateTime? lockoutEnd) GetLockoutPeriodFallback(DateTime date, double latitude, double longitude, double altitudeThreshold)
+    private (DateTime? lockoutStart, DateTime? lockoutEnd) GetLockoutPeriodFallback(DateTime date, double latitude, double longitude, double altitudeThreshold, TimeZoneInfo observatoryTz)
     {
         // Fallback to the original sampling method if precise search fails
-        var utcDate = date.ToUniversalTime().Date;
+        var observatoryDate = TimeZoneInfo.ConvertTime(date.Date, observatoryTz);
+        var utcDate = observatoryDate.ToUniversalTime();
         DateTime? lockoutStart = null;
         DateTime? lockoutEnd = null;
         
@@ -133,12 +158,12 @@ public class SolarCalculationService
             {
                 if (lockoutStart == null)
                 {
-                    lockoutStart = checkTime.ToLocalTime();
+                    lockoutStart = TimeZoneInfo.ConvertTimeFromUtc(checkTime, observatoryTz);
                 }
             }
             else if (lockoutStart != null && lockoutEnd == null)
             {
-                lockoutEnd = checkTime.ToLocalTime();
+                lockoutEnd = TimeZoneInfo.ConvertTimeFromUtc(checkTime, observatoryTz);
                 break;
             }
         }

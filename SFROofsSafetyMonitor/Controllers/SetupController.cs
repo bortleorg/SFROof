@@ -38,8 +38,7 @@ public class SetupController : ControllerBase
             <p><strong>Latitude:</strong> {locationInfo.Latitude:F6}°</p>
             <p><strong>Longitude:</strong> {locationInfo.Longitude:F6}°</p>
             <p><strong>Timezone:</strong> {locationInfo.Timezone}</p>
-            <p><em>Location is configured in roofs.json and cannot be changed here.</em></p>
-        </div>"
+            </div>"
             : "<div class='config-section'><p><strong>Warning:</strong> No location information found in roofs.json</p></div>";
 
         var manualOverrideSection = $@"
@@ -89,9 +88,6 @@ public class SetupController : ControllerBase
             </form>
             
             <div id='solarMessage'></div>
-            <div id='solarStatus' style='margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;'>
-                <strong>Current Solar Status:</strong> <span id='currentSolarInfo'>Loading...</span>
-            </div>
         </div>";
 
         var html = $@"<!DOCTYPE html>
@@ -108,6 +104,7 @@ public class SetupController : ControllerBase
         .safe {{ background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
         .unsafe {{ background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
         .unknown {{ background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }}
+        #solar-status {{ text-align: left; font-weight: normal; background-color: #e8f4fd; color: #0c5460; border: 1px solid #bee5eb; }}
         .config-section {{ background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-left: 4px solid #007bff; }}
         pre {{ background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }}
         code {{ background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }}
@@ -127,9 +124,17 @@ public class SetupController : ControllerBase
             Current Status: Loading...
         </div>
 
+        <div id='solar-status' class='status unknown' style='margin-top: 10px;'>
+            <strong>Solar Status:</strong> <span id='currentSolarInfo'>Loading...</span>
+        </div>
+
         <div class='roof-selection'>
             <h2>Roof Selection</h2>
             {selectedRoofInfo}
+            
+            <div id='roof-status' style='margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;'>
+                <strong>Roof Status Details:</strong> <span id='roofStatusDetails'>Loading...</span>
+            </div>
             
             <form id='roofForm'>
                 <label for='roofSelect'>Select Roof to Monitor:</label><br>
@@ -143,52 +148,11 @@ public class SetupController : ControllerBase
             <div id='saveMessage'></div>
         </div>
 
-        {locationSection}
-
         {manualOverrideSection}
 
-        <h2>Device Information</h2>
-        <p><strong>Device Type:</strong> Safety Monitor</p>
-        <p><strong>Interface Version:</strong> v1</p>
-        <p><strong>Driver Version:</strong> 1.0</p>
-        <p><strong>Description:</strong> ASCOM Alpaca Safety Monitor for SFR Observatory Roof System</p>
-
-        <h2>Configuration</h2>
-        <div class='config-section'>
-            <p>This safety monitor monitors the roof status of SFR Observatory through HTTP requests.</p>
-            <p>The device will report:</p>
-            <ul>
-                <li><strong>SAFE</strong> when the roof is open (telescope can operate safely)</li>
-                <li><strong>UNSAFE</strong> when the roof is closed or status cannot be determined</li>
-            </ul>
-        </div>
-
-        <h2>Network Settings</h2>
-        <p><strong>Server Address:</strong> <span id='server-address'>Loading...</span></p>
-        <p><strong>Port:</strong> 11111</p>
-        <p><strong>Base URL:</strong> <span id='base-url'>Loading...</span></p>
-
-        <h2>Available Roofs Configuration</h2>
-        <div class='config-section'>
-            <p>To add or modify available roofs, edit the <code>roofs.json</code> file in the application directory:</p>
-            <pre>{{
-  ""roofs"": [
-    {{
-      ""name"": ""Your Roof Name"",
-      ""url"": ""http://your-roof-server/api/roof/status""
-    }}
-  ]
-}}</pre>
-        </div>
+        {locationSection}
 
         <script>
-        // Update server info
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        const port = window.location.port || (protocol === 'https:' ? '443' : '80');
-        document.getElementById('server-address').textContent = hostname + ':' + port;
-        document.getElementById('base-url').textContent = protocol + '//' + hostname + ':' + port;
-
         // Refresh status function
         async function refreshStatus() {{
             try {{
@@ -209,6 +173,31 @@ public class SetupController : ControllerBase
         refreshStatus();
         setInterval(refreshStatus, 10000); // Update every 10 seconds
 
+        // Update roof status details
+        async function updateRoofStatus() {{
+            try {{
+                const response = await fetch('/api/v1/safetymonitor/0/roofstatus');
+                const data = await response.json();
+                const roof = data.value;
+                
+                let statusText = `${{roof.message}}`;
+                if (roof.isConnected !== undefined) {{
+                    statusText += ` | Connected: ${{roof.isConnected ? 'Yes' : 'No'}}`;
+                }}
+                if (roof.lastUpdateTime) {{
+                    const updateTime = new Date(roof.lastUpdateTime).toLocaleString();
+                    statusText += ` | Last Update: ${{updateTime}}`;
+                }}
+                
+                document.getElementById('roofStatusDetails').textContent = statusText;
+            }} catch (error) {{
+                document.getElementById('roofStatusDetails').textContent = 'Error loading roof status details';
+            }}
+        }}
+
+        updateRoofStatus();
+        setInterval(updateRoofStatus, 10000); // Update every 10 seconds
+
         // Update solar status
         async function updateSolarStatus() {{
             try {{
@@ -217,9 +206,13 @@ public class SetupController : ControllerBase
                 const data = await response.json();
                 const solar = data.value;
                 
-                let statusText = solar.message;
+                let statusText = '';
+                
+                // Always show current sun angle if available
                 if (solar.currentAltitude !== null) {{
-                    statusText += ` (Current: ${{solar.currentAltitude.toFixed(1)}}°, Limit: ${{solar.maxAltitude}}°)`;
+                    statusText = `Current Sun Angle: ${{solar.currentAltitude.toFixed(1)}}°`;
+                }} else {{
+                    statusText = 'Current Sun Angle: Unknown';
                 }}
                 
                 // Get lockout period information
@@ -228,27 +221,28 @@ public class SetupController : ControllerBase
                     const lockoutData = await lockoutResponse.json();
                     const lockout = lockoutData.value;
                     
-                    if (lockout.enabled && lockout.hasLockout) {{
-                        const startTime = new Date(lockout.lockoutStart).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
-                        const endTime = new Date(lockout.lockoutEnd).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
-                        
-                        if (lockout.isCurrentlyInLockout) {{
-                            statusText += ` | 🔒 LOCKOUT ACTIVE until ${{endTime}}`;
+                    if (lockout.enabled) {{
+                        if (lockout.hasLockout) {{
+                            if (lockout.isCurrentlyInLockout) {{
+                                // Currently locked
+                                const endTime = new Date(lockout.lockoutEnd).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
+                                statusText += `<br>Currently Locked: Yes<br>Unlock time: ${{endTime}}`;
+                            }} else {{
+                                // Not currently locked, show next lock time
+                                const startTime = new Date(lockout.lockoutStart).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
+                                statusText += `<br>Currently Locked: No<br>Lock time: ${{startTime}}`;
+                            }}
                         }} else {{
-                            const startDate = new Date(lockout.lockoutStart);
-                            const today = new Date();
-                            const isToday = startDate.toDateString() === today.toDateString();
-                            const dayText = isToday ? 'Today' : 'Tomorrow';
-                            statusText += ` | Next lockout: ${{dayText}} ${{startTime}}-${{endTime}}`;
+                            // Solar lockout enabled but no lockout period (sun stays below threshold)
+                            statusText += `<br>Currently Locked: No<br>(Sun stays below ${{lockout.threshold}}° today)`;
                         }}
-                    }} else if (lockout.enabled) {{
-                        statusText += ` | No lockout period (sun stays below ${{lockout.threshold}}°)`;
                     }}
+                    // If solar lockout is disabled, we don't show the lockout status lines
                 }} catch (lockoutError) {{
                     console.log('Could not fetch lockout period:', lockoutError);
                 }}
                 
-                document.getElementById('currentSolarInfo').textContent = statusText;
+                document.getElementById('currentSolarInfo').innerHTML = statusText;
             }} catch (error) {{
                 document.getElementById('currentSolarInfo').textContent = 'Error loading solar status';
             }}
