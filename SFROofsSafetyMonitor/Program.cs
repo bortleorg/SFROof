@@ -15,6 +15,7 @@ builder.Services.AddControllers()
 
 // Add configuration service
 builder.Services.AddScoped<ConfigurationService>();
+builder.Services.AddScoped<SolarCalculationService>();
 
 // Add CORS to allow connections from any ASCOM client
 builder.Services.AddCors(options =>

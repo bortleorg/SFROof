@@ -27,8 +27,8 @@ public class ConfigurationService
             }
 
             var json = await File.ReadAllTextAsync(_roofsPath);
-            var roofs = JsonConvert.DeserializeObject<List<RoofConfig>>(json) ?? new List<RoofConfig>();
-            return roofs;
+            var roofsConfig = JsonConvert.DeserializeObject<RoofsConfiguration>(json);
+            return roofsConfig?.Roofs ?? new List<RoofConfig>();
         }
         catch (Exception ex)
         {
@@ -37,18 +37,56 @@ public class ConfigurationService
         }
     }
 
+    public async Task<LocationInfo?> GetLocationInfoAsync()
+    {
+        try
+        {
+            if (!File.Exists(_roofsPath))
+            {
+                _logger.LogWarning("roofs.json not found at {Path}", _roofsPath);
+                return null;
+            }
+
+            var json = await File.ReadAllTextAsync(_roofsPath);
+            var roofsConfig = JsonConvert.DeserializeObject<RoofsConfiguration>(json);
+            return roofsConfig?.Location;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading location configuration");
+            return null;
+        }
+    }
+
     public async Task<SafetyMonitorSettings> GetSettingsAsync()
     {
         try
         {
+            SafetyMonitorSettings settings;
+            
             if (!File.Exists(_settingsPath))
             {
                 // Return default settings
-                return new SafetyMonitorSettings();
+                settings = new SafetyMonitorSettings();
+            }
+            else
+            {
+                var json = await File.ReadAllTextAsync(_settingsPath);
+                settings = JsonConvert.DeserializeObject<SafetyMonitorSettings>(json) ?? new SafetyMonitorSettings();
             }
 
-            var json = await File.ReadAllTextAsync(_settingsPath);
-            var settings = JsonConvert.DeserializeObject<SafetyMonitorSettings>(json) ?? new SafetyMonitorSettings();
+            // Auto-populate location from roofs.json if not set
+            if (settings.ObservatoryLatitude == 0.0 && settings.ObservatoryLongitude == 0.0)
+            {
+                var locationInfo = await GetLocationInfoAsync();
+                if (locationInfo != null)
+                {
+                    settings.ObservatoryLatitude = locationInfo.Latitude;
+                    settings.ObservatoryLongitude = locationInfo.Longitude;
+                    settings.ObservatoryTimezone = locationInfo.Timezone;
+                }
+            }
+
             return settings;
         }
         catch (Exception ex)

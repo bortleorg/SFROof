@@ -22,6 +22,7 @@ public class SetupController : ControllerBase
         var roofs = await _configService.GetAvailableRoofsAsync();
         var settings = await _configService.GetSettingsAsync();
         var selectedRoof = await _configService.GetSelectedRoofAsync();
+        var locationInfo = await _configService.GetLocationInfoAsync();
 
         var roofOptions = string.Join("", roofs.Select(r => 
             $"<option value='{r.Name}' {(r.Name == settings.SelectedRoofName ? "selected" : "")}>{r.Name}</option>"));
@@ -29,6 +30,69 @@ public class SetupController : ControllerBase
         var selectedRoofInfo = selectedRoof != null 
             ? $"<p><strong>Selected Roof:</strong> {selectedRoof.Name}</p><p><strong>URL:</strong> {selectedRoof.Url}</p>"
             : "<p><strong>No roof selected!</strong> Please select a roof below.</p>";
+
+        var locationSection = locationInfo != null 
+            ? $@"
+        <div class='config-section'>
+            <h2>Observatory Location</h2>
+            <p><strong>Latitude:</strong> {locationInfo.Latitude:F6}°</p>
+            <p><strong>Longitude:</strong> {locationInfo.Longitude:F6}°</p>
+            <p><strong>Timezone:</strong> {locationInfo.Timezone}</p>
+            <p><em>Location is configured in roofs.json and cannot be changed here.</em></p>
+        </div>"
+            : "<div class='config-section'><p><strong>Warning:</strong> No location information found in roofs.json</p></div>";
+
+        var manualOverrideSection = $@"
+        <div class='roof-selection'>
+            <h2>Manual Override</h2>
+            <p>Manual override allows you to force the safety monitor to return a specific value, bypassing all other checks.</p>
+            
+            <form id='overrideForm'>
+                <label>
+                    <input type='checkbox' id='overrideEnabled' {(settings.ManualOverrideEnabled ? "checked" : "")}> 
+                    Enable Manual Override
+                </label><br><br>
+                
+                <div id='overrideControls' style='display: {(settings.ManualOverrideEnabled ? "block" : "none")}'>
+                    <label>Override Value:</label><br>
+                    <label>
+                        <input type='radio' name='overrideValue' value='true' {(settings.ManualOverrideValue ? "checked" : "")}> 
+                        Force SAFE
+                    </label><br>
+                    <label>
+                        <input type='radio' name='overrideValue' value='false' {(!settings.ManualOverrideValue ? "checked" : "")}> 
+                        Force UNSAFE
+                    </label><br><br>
+                </div>
+                
+                <button type='submit'>Save Override Settings</button>
+            </form>
+            
+            <div id='overrideMessage'></div>
+        </div>
+
+        <div class='roof-selection'>
+            <h2>Solar Altitude Lockout</h2>
+            <p>Prevents the system from reporting SAFE when the sun is above a specified altitude (to protect during daylight operations).</p>
+            
+            <form id='solarForm'>
+                <label>
+                    <input type='checkbox' id='solarEnabled' {(settings.SolarLockoutEnabled ? "checked" : "")}> 
+                    Enable Solar Lockout
+                </label><br><br>
+                
+                <label for='maxAltitude'>Maximum Solar Altitude (degrees):</label><br>
+                <input type='number' id='maxAltitude' step='0.1' value='{settings.MaxSolarAltitude}' style='width: 100px;'><br>
+                <small>Negative values = below horizon (e.g., -5 = 5 degrees below horizon)</small><br><br>
+                
+                <button type='submit'>Save Solar Settings</button>
+            </form>
+            
+            <div id='solarMessage'></div>
+            <div id='solarStatus' style='margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;'>
+                <strong>Current Solar Status:</strong> <span id='currentSolarInfo'>Loading...</span>
+            </div>
+        </div>";
 
         var html = $@"<!DOCTYPE html>
 <html>
@@ -78,6 +142,10 @@ public class SetupController : ControllerBase
             
             <div id='saveMessage'></div>
         </div>
+
+        {locationSection}
+
+        {manualOverrideSection}
 
         <h2>Device Information</h2>
         <p><strong>Device Type:</strong> Safety Monitor</p>
@@ -141,6 +209,137 @@ public class SetupController : ControllerBase
         refreshStatus();
         setInterval(refreshStatus, 10000); // Update every 10 seconds
 
+        // Update solar status
+        async function updateSolarStatus() {{
+            try {{
+                // Get current solar status
+                const response = await fetch('/api/v1/safetymonitor/0/solarstatus');
+                const data = await response.json();
+                const solar = data.value;
+                
+                let statusText = solar.message;
+                if (solar.currentAltitude !== null) {{
+                    statusText += ` (Current: ${{solar.currentAltitude.toFixed(1)}}°, Limit: ${{solar.maxAltitude}}°)`;
+                }}
+                
+                // Get lockout period information
+                try {{
+                    const lockoutResponse = await fetch('/api/v1/safetymonitor/0/lockoutperiod');
+                    const lockoutData = await lockoutResponse.json();
+                    const lockout = lockoutData.value;
+                    
+                    if (lockout.enabled && lockout.hasLockout) {{
+                        const startTime = new Date(lockout.lockoutStart).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
+                        const endTime = new Date(lockout.lockoutEnd).toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}});
+                        
+                        if (lockout.isCurrentlyInLockout) {{
+                            statusText += ` | 🔒 LOCKOUT ACTIVE until ${{endTime}}`;
+                        }} else {{
+                            const startDate = new Date(lockout.lockoutStart);
+                            const today = new Date();
+                            const isToday = startDate.toDateString() === today.toDateString();
+                            const dayText = isToday ? 'Today' : 'Tomorrow';
+                            statusText += ` | Next lockout: ${{dayText}} ${{startTime}}-${{endTime}}`;
+                        }}
+                    }} else if (lockout.enabled) {{
+                        statusText += ` | No lockout period (sun stays below ${{lockout.threshold}}°)`;
+                    }}
+                }} catch (lockoutError) {{
+                    console.log('Could not fetch lockout period:', lockoutError);
+                }}
+                
+                document.getElementById('currentSolarInfo').textContent = statusText;
+            }} catch (error) {{
+                document.getElementById('currentSolarInfo').textContent = 'Error loading solar status';
+            }}
+        }}
+
+        updateSolarStatus();
+        setInterval(updateSolarStatus, 30000); // Update every 30 seconds
+
+        // Manual override form handler
+        document.getElementById('overrideEnabled').addEventListener('change', function() {{
+            const controls = document.getElementById('overrideControls');
+            controls.style.display = this.checked ? 'block' : 'none';
+        }});
+
+        document.getElementById('overrideForm').addEventListener('submit', async function(e) {{
+            e.preventDefault();
+            
+            const enabled = document.getElementById('overrideEnabled').checked;
+            const valueRadios = document.getElementsByName('overrideValue');
+            let value = false;
+            
+            for (const radio of valueRadios) {{
+                if (radio.checked) {{
+                    value = radio.value === 'true';
+                    break;
+                }}
+            }}
+
+            try {{
+                const response = await fetch('/api/v1/safetymonitor/0/override', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{ 
+                        enabled: enabled,
+                        value: value
+                    }})
+                }});
+
+                if (response.ok) {{
+                    document.getElementById('overrideMessage').innerHTML = '<p class=""success"">Override settings saved successfully!</p>';
+                    setTimeout(() => refreshStatus(), 1000); // Refresh status to show override effect
+                }} else {{
+                    document.getElementById('overrideMessage').innerHTML = '<p class=""error"">Failed to save override settings.</p>';
+                }}
+            }} catch (error) {{
+                document.getElementById('overrideMessage').innerHTML = '<p class=""error"">Error saving override settings: ' + error.message + '</p>';
+            }}
+        }});
+
+        // Solar form handler
+        document.getElementById('solarForm').addEventListener('submit', async function(e) {{
+            e.preventDefault();
+            
+            const solarEnabled = document.getElementById('solarEnabled').checked;
+            const maxAltitude = parseFloat(document.getElementById('maxAltitude').value);
+
+            try {{
+                // Get current settings first
+                const currentResponse = await fetch('/setup/v1/safetymonitor/0/settings');
+                let currentSettings = {{}};
+                if (currentResponse.ok) {{
+                    currentSettings = await currentResponse.json();
+                }}
+
+                const updatedSettings = {{
+                    ...currentSettings,
+                    solarLockoutEnabled: solarEnabled,
+                    maxSolarAltitude: maxAltitude
+                }};
+
+                const response = await fetch('/setup/v1/safetymonitor/0/settings', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify(updatedSettings)
+                }});
+
+                if (response.ok) {{
+                    document.getElementById('solarMessage').innerHTML = '<p class=""success"">Solar settings saved successfully!</p>';
+                    setTimeout(() => updateSolarStatus(), 1000); // Refresh solar status
+                }} else {{
+                    document.getElementById('solarMessage').innerHTML = '<p class=""error"">Failed to save solar settings.</p>';
+                }}
+            }} catch (error) {{
+                document.getElementById('solarMessage').innerHTML = '<p class=""error"">Error saving solar settings: ' + error.message + '</p>';
+            }}
+        }});
+
         // Handle roof selection form
         document.getElementById('roofForm').addEventListener('submit', async function(e) {{
             e.preventDefault();
@@ -192,9 +391,57 @@ public class SetupController : ControllerBase
             return BadRequest($"Failed to save roof selection: {ex.Message}");
         }
     }
+
+    [HttpGet("settings")]
+    public async Task<IActionResult> GetSettings()
+    {
+        try
+        {
+            var settings = await _configService.GetSettingsAsync();
+            return Ok(settings);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to get settings: {ex.Message}");
+        }
+    }
+
+    [HttpPost("settings")]
+    public async Task<IActionResult> SaveSettings([FromBody] SettingsUpdateRequest request)
+    {
+        try
+        {
+            var settings = await _configService.GetSettingsAsync();
+            
+            // Update the settings from the request
+            if (request.SolarLockoutEnabled.HasValue)
+                settings.SolarLockoutEnabled = request.SolarLockoutEnabled.Value;
+            if (request.MaxSolarAltitude.HasValue)
+                settings.MaxSolarAltitude = request.MaxSolarAltitude.Value;
+            if (request.ObservatoryLatitude.HasValue)
+                settings.ObservatoryLatitude = request.ObservatoryLatitude.Value;
+            if (request.ObservatoryLongitude.HasValue)
+                settings.ObservatoryLongitude = request.ObservatoryLongitude.Value;
+            
+            await _configService.SaveSettingsAsync(settings);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to save settings: {ex.Message}");
+        }
+    }
 }
 
 public class RoofSelectionRequest
 {
     public string RoofName { get; set; } = string.Empty;
+}
+
+public class SettingsUpdateRequest
+{
+    public bool? SolarLockoutEnabled { get; set; }
+    public double? MaxSolarAltitude { get; set; }
+    public double? ObservatoryLatitude { get; set; }
+    public double? ObservatoryLongitude { get; set; }
 }
